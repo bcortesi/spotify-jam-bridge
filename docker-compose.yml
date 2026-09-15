@@ -1,0 +1,21 @@
+services:
+  spotify-jam-bridge:
+    build: .
+    image: spotify-jam-bridge:latest
+    container_name: spotify-jam-bridge
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      DEVICE_NAME: "Jam Bridge"
+      POLL_INTERVAL: "60"          # seconds between Spotify checks
+      AUTO_START: "false"          # true = always keep a Jam open
+      USE_SHORT_LINK: "true"       # encode spotify.link URL (like the app) instead of open.spotify.com
+      API_KEY: ""                  # optional; if set, send X-API-Key or ?key=
+      HA_URL: ""                   # e.g. http://homeassistant.local:8123
+      HA_TOKEN: ""                 # long-lived access token
+      HA_ENTITY: "input_text.spotify_jam_link"
+      WEBHOOK_URL: ""              # optional n8n webhook, receives JSON on every change
+      LOG_LEVEL: "INFO"

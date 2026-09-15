@@ -1,0 +1,35 @@
+# Lovelace card: QR shown only while a Jam is active, with start/end buttons.
+type: vertical-stack
+cards:
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: sensor.spotify_jam
+        state: "on"
+    card:
+      type: picture-entity
+      entity: camera.spotify_jam_qr
+      camera_image: camera.spotify_jam_qr
+      show_name: false
+      show_state: false
+  - type: markdown
+    content: >
+      {% if is_state('sensor.spotify_jam', 'on') %}
+      **Jam is live** ({{ state_attr('sensor.spotify_jam', 'member_count') }} listening) · [Join]({{ state_attr('sensor.spotify_jam', 'qr_payload') }})
+      {% else %}
+      No Jam running.
+      {% endif %}
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Start Jam
+        icon: mdi:play-circle
+        tap_action:
+          action: perform-action
+          perform_action: rest_command.spotify_jam_start
+      - type: button
+        name: End Jam
+        icon: mdi:stop-circle
+        tap_action:
+          action: perform-action
+          perform_action: rest_command.spotify_jam_end

@@ -1,0 +1,102 @@
+{
+  "name": "Spotify Jam Bridge",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "0 18 * * 5,6" } ] }
+      },
+      "name": "Start Jam (Fri/Sat 18:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.JAM_BRIDGE_URL }}/jam/start",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "X-API-Key", "value": "={{ $env.JAM_BRIDGE_KEY }}" } ] },
+        "options": { "timeout": 20000 }
+      },
+      "name": "POST /jam/start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "0 2 * * *" } ] }
+      },
+      "name": "End Jam (02:00)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.JAM_BRIDGE_URL }}/jam/end",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "X-API-Key", "value": "={{ $env.JAM_BRIDGE_KEY }}" } ] },
+        "options": { "timeout": 20000 }
+      },
+      "name": "POST /jam/end",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spotify-jam",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Jam changed (webhook from bridge)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 420],
+      "webhookId": "spotify-jam"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HA_URL }}/api/services/input_text/set_value",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.HA_TOKEN }}" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { entity_id: 'input_text.spotify_jam_link', value: $json.body.qr_payload || '' } }}",
+        "options": {}
+      },
+      "name": "HA: set input_text.spotify_jam_link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HA_URL }}/api/services/notify/notify",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.HA_TOKEN }}" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { title: 'Spotify Jam', message: $json.body.active ? ('Jam started: ' + $json.body.qr_payload) : 'Jam ended' } }}",
+        "options": {}
+      },
+      "name": "HA: notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 420]
+    }
+  ],
+  "connections": {
+    "Start Jam (Fri/Sat 18:00)": { "main": [ [ { "node": "POST /jam/start", "type": "main", "index": 0 } ] ] },
+    "End Jam (02:00)": { "main": [ [ { "node": "POST /jam/end", "type": "main", "index": 0 } ] ] },
+    "Jam changed (webhook from bridge)": { "main": [ [ { "node": "HA: set input_text.spotify_jam_link", "type": "main", "index": 0 } ] ] },
+    "HA: set input_text.spotify_jam_link": { "main": [ [ { "node": "HA: notify", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Europe/Brussels" },
+  "active": false
+}

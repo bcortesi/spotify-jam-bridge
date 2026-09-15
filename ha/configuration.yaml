@@ -1,0 +1,42 @@
+# Home Assistant snippets for the Spotify Jam Bridge.
+# Replace 10.0.0.50:8080 with the bridge host/port. If API_KEY is set, append ?key=YOUR_KEY to the URLs.
+
+# 1) Text entity the bridge writes the invite link into (push mode; needs HA_URL/HA_TOKEN in the container)
+input_text:
+  spotify_jam_link:
+    name: Spotify Jam link
+    max: 255
+
+# 2) Pull mode: HA polls the bridge itself (no HA token needed in the container)
+rest:
+  - resource: http://10.0.0.50:8080/jam
+    scan_interval: 60
+    sensor:
+      - name: Spotify Jam
+        value_template: "{{ 'on' if value_json.active else 'off' }}"
+        json_attributes:
+          - join_url
+          - short_url
+          - qr_payload
+          - session_id
+          - member_count
+          - username
+          - updated_at
+
+# 3) The QR image, refreshed automatically. Can also be added via the UI:
+#    Settings > Devices & services > Add integration > Generic Camera, still image URL below, no stream.
+camera:
+  - platform: generic
+    name: Spotify Jam QR
+    still_image_url: http://10.0.0.50:8080/jam/qr.png
+    content_type: image/png
+    verify_ssl: false
+
+# 4) Buttons to start/end from the dashboard
+rest_command:
+  spotify_jam_start:
+    url: http://10.0.0.50:8080/jam/start
+    method: POST
+  spotify_jam_end:
+    url: http://10.0.0.50:8080/jam/end
+    method: POST
