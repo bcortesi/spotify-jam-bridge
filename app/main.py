@@ -124,7 +124,39 @@ def auth(request: Request):
 @app.get("/health")
 def health():
     return {"ok": True, "credentials": spotify.has_credentials, "connected": spotify.connected}
+  
+@app.get("/heartbeat")
+def heartbeat(deep: bool = False):
+    """200 when the bridge is healthy, 503 otherwise. Meant for Gatus/uptime checks."""
+    problems = []
+    if not spotify.has_credentials:
+        problems.append("no stored credentials, OAuth required at /setup")
+    elif not spotify.connected:
+        problems.append("spotify session not connected")
+    elif not spotify.username:
+        problems.append("session has no username")
 
+    with state.lock:
+        last_error = state.last_error
+        updated = state.updated_at
+    if last_error:
+        problems.append(f"last poll failed: {last_error}")
+    if updated:
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(updated)).total_seconds()
+        if age > POLL_INTERVAL * 3:
+            problems.append(f"last successful poll is {int(age)}s old")
+    else:
+        problems.append("no successful poll yet")
+
+    if deep and not problems:
+        try:
+            spotify.current()
+        except Exception as e:
+            problems.append(f"live spotify call failed: {e}")
+
+    body = {"ok": not problems, "username": spotify.username,
+            "connected": spotify.connected, "updated_at": updated, "problems": problems}
+    return JSONResponse(body, status_code=200 if not problems else 503)
 
 # ---------- setup (OAuth) ----------
 @app.get("/setup", response_class=HTMLResponse)
