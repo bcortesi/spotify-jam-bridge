@@ -178,6 +178,10 @@ class SpotifyJam:
             headers["Content-Type"] = "application/json"
             data = json.dumps(body).encode()
         resp = self._session.api().send(method, path, headers, data)
+        if resp.status_code in (401, 403):
+            log.warning("%s %s -> %s, rebuilding session and retrying once", method, path, resp.status_code)
+            self.connect()
+            resp = self._session.api().send(method, path, headers, data)
         log.debug("%s %s -> %s", method, path, resp.status_code)
         return resp
 
